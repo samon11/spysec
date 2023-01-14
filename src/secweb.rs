@@ -1,19 +1,49 @@
-use std::string::String;
+mod parser;
+
 use std::error::Error;
-use regex::Regex;
 
-
+use chrono::NaiveDate;
 use reqwest::blocking::{RequestBuilder};
 use reqwest::{Url};
-use roxmltree::Document;
 
-use crate::Filing;
+use parser::extract_filing;
 
-pub struct SecWeb {
+#[derive(Default, Debug)]
+pub enum Relationship {
+    #[default] OTHER = 1,
+    TENPERC,
+    DIRECTOR,
+    OFFICER,
 }
 
-impl SecWeb {
+#[derive(Default, Debug)]
+pub enum Ownership {
+    #[default] DIRECT = 1,
+    INDIRECT
+}
 
+#[derive(Default, Debug)]
+pub enum ShareAction {
+    #[default] ACQ = 1,
+    DISP
+}
+
+#[derive(Debug, Default)]
+pub struct Filing {
+    trans_date: NaiveDate,
+    company: String,
+    symbol: String,
+    owner: String,
+    relationship: Vec<Relationship>,
+    shares_traded: f32,
+    avg_price: f32,
+    amount: f32,
+    shares_owned: f32,
+    ownership: Ownership,
+    action: ShareAction,
+    company_cik: String,
+    owner_cik: String,
+    form_type: String
 }
 
 pub fn get_form(url: &str) -> Result<Filing, Box<dyn Error>> {
@@ -26,61 +56,5 @@ pub fn get_form(url: &str) -> Result<Filing, Box<dyn Error>> {
     println!("Send request to: {url}");
     let body = RequestBuilder::send(request)?.text()?;
 
-    Ok(extract_filing(&body).unwrap())
+    Ok(extract_filing(&body))
 }
-
-fn extract_filing(input: &str) -> Option<Filing> {
-    let pattern: Regex = Regex::new(r#"<\?xml version="1\.0"\?>[\W\S]*</ownershipDocument>"#).unwrap();
-
-    let raw_xml = pattern.captures(input).and_then(|cap| {
-        cap.iter().next().expect("Failed to parse XML").map(|m| m.as_str())
-    })
-    .expect("XML regex match failed");
-
-    let doc = roxmltree::Document::parse(raw_xml).unwrap();
-
-    let tags = doc.descendants().len();
-    println!("doc size: {tags}");
-    
-    let mut filing = Filing::default();
-    filing.shares_traded = get_tag_value(&doc, "transactionShares");
-    filing.avg_price = get_tag_value(&doc, "transactionPricePerShare");
-    filing.amount = filing.shares_traded * filing.avg_price;
-    filing.shares_owned = get_tag_value(&doc, "sharesOwnedFollowingTransaction");
-    filing.company = get_tag_text(&doc, "issuerName", false);
-    filing.symbol = get_tag_text(&doc, "issuerTradingSymbol", false);
-    filing.owner = get_tag_text(&doc, "rptOwnerName", false);
-    filing.trans_date = get_tag_text(&doc, "transactionDate", true);
-
-    Some(filing)
-}
-
-fn get_tag_text<'a>(doc: &'a Document<'a>, tag_name: &'a str, value_tag: bool) -> String {
-    doc.descendants()
-        .find(|e| e.has_tag_name(tag_name))
-        .and_then(|n| {
-            if value_tag {
-                n.descendants().find(|v| v.has_tag_name("value"))
-            } 
-            else {
-                Some(n)
-            }
-        })
-        .expect("Tag name not found")
-        .text()
-        .ok_or("")
-        .unwrap()
-        .to_string()
-}
-
-fn get_tag_value(doc: &Document, tag_name: &str) -> f32 {
-    let text = doc.descendants()
-        .find(|e| e.has_tag_name(tag_name))
-        .and_then(|c| c.descendants().find(|v| v.has_tag_name("value")))
-        .expect("Value or tag name not found")
-        .text();
-
-    text.unwrap().parse::<f32>().unwrap_or(0.0)
-}
-
-
