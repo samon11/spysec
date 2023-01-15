@@ -1,14 +1,20 @@
 mod parser;
+pub mod persist;
 
 use std::error::Error;
-
-use chrono::NaiveDate;
-use reqwest::blocking::{RequestBuilder};
+use std::sync::{Arc, Mutex};
+use chrono::{NaiveDate, Datelike};
+use reqwest::{RequestBuilder, Client};
 use reqwest::{Url};
+use serde::{Serialize};
 
-use parser::extract_filing;
+use parser::filing::extract_transactions;
+use parser::index::{IndexEntry, extract_index_entries, get_quarter};
 
-#[derive(Default, Debug)]
+const BASEURL: &str = "https://www.sec.gov/Archives/";
+type Db = Arc<Mutex<Vec<String>>>;
+
+#[derive(Default, Debug, Serialize)]
 pub enum Relationship {
     #[default] OTHER = 1,
     TENPERC,
@@ -16,24 +22,24 @@ pub enum Relationship {
     OFFICER,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize)]
 pub enum Ownership {
     #[default] DIRECT = 1,
     INDIRECT
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize)]
 pub enum ShareAction {
     #[default] ACQ = 1,
     DISP
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
 pub struct Filing {
     trans_date: NaiveDate,
-    company: String,
+    pub company: String,
     symbol: String,
-    owner: String,
+    pub owner: String,
     relationship: Vec<Relationship>,
     shares_traded: f32,
     avg_price: f32,
@@ -46,15 +52,60 @@ pub struct Filing {
     form_type: String
 }
 
-pub fn get_form(url: &str) -> Result<Filing, Box<dyn Error>> {
-    let client = reqwest::blocking::Client::new();
+pub async fn get_form(entry: &IndexEntry) -> Result<String, Box<dyn Error>> {
+    let url = BASEURL.to_string() + &entry.filepath;
+    println!("url: {url}");
+
+    let client = Client::new();
+    let res = client.get(
+        Url::parse(&url).expect("Failed to parse valid URL")
+    )
+    .header("User-Agent", "Michael Samon mjsamon@icloud.com")
+    .send()
+    .await?;
+
+    let body = res.text().await?;
+    let filing = extract_transactions(&body);
+    
+    Ok(filing)
+}
+
+pub async fn process_entries(entries: &[IndexEntry], db: Db, skip: usize, take: usize) -> Result<(), Box<dyn Error>> {
+    for entry in entries.iter().cloned().skip(skip).take(take) {
+        let db = db.clone();
+        tokio::spawn(async move {
+            let result = get_form(&entry).await;
+            match result {
+                Ok(filing) => {
+                    db.lock()
+                        .and_then(|mut v| Ok(v.push(filing)))
+                        .expect("Could not push to mutex db");
+                },
+                Err(err) => {
+                    println!("Error occurred for filing {}: {:?}", entry.filepath, err);
+                }
+            }
+        });
+    }
+
+    Ok(())
+}
+
+pub async fn get_daily_entries(date: NaiveDate) -> Result<Vec<IndexEntry>, Box<dyn Error>> {
+    let flat_date = NaiveDate::format(&date, "%Y%m%d").to_string();
+    let qtr = get_quarter(date);
+    let index_url = format!(
+        "https://www.sec.gov/Archives/edgar/daily-index/{}/{}/master.{}.idx"
+        , date.year(), qtr, flat_date);
+
+    let client = Client::new();
     let request = client.get(
-        Url::parse(url).expect("Failed to parse valid URL")
+        Url::parse(&index_url).expect("Failed to parse valid URL")
     )
     .header("User-Agent", "Michael Samon mjsamon@icloud.com");
 
-    println!("Send request to: {url}");
-    let body = RequestBuilder::send(request)?.text()?;
+    println!("Send request to: {index_url}");
+    let body = RequestBuilder::send(request).await?.text();
 
-    Ok(extract_filing(&body))
+    Ok(extract_index_entries(&body.await.unwrap()))
 }
