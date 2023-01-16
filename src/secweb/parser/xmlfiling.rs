@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use std::{string::String};
 use minidom::{Element, NSChoice};
 
-use crate::secweb::models::{Relationship, ShareAction, Ownership, FilingTransaction};
+use crate::secweb::models::{Relationship, FilingTransaction};
 
 #[derive(Debug, Default)]
 struct XMLNode {
@@ -11,9 +11,9 @@ struct XMLNode {
 
 impl XMLNode {
     pub fn new(el: &Element) -> XMLNode {
-        let mut text =  el.text().trim().to_string();
+        let mut text =  el.text().trim().to_uppercase();
         if el.has_child("value", NSChoice::Any) {
-            text = el.get_child("value", NSChoice::Any).unwrap().text().trim().to_string();
+            text = el.get_child("value", NSChoice::Any).unwrap().text().trim().to_uppercase();
         }
         
         XMLNode { text: text }
@@ -58,32 +58,6 @@ impl XMLFiling {
     
         relationships
     }
-    
-    fn get_action(node: &Element) -> ShareAction {
-        let _value = Self::traverse(&node, &["transactionAmounts", "transactionAcquiredDisposedCode"])
-            .unwrap().text.to_uppercase();
-    
-        if let Some(_value) = Some("D") {
-            ShareAction::DISP
-        } else if let Some(_value) = Some("A") {
-            ShareAction::ACQ
-        } else {
-            panic!("Transaction code could not be determined");
-        }
-    }
-    
-    fn get_ownership(node: &Element) -> Ownership {
-        let ownership = Self::traverse(&node, &["ownershipNature", "directOrIndirectOwnership"])
-            .unwrap().text.to_uppercase();
-
-        if ownership == "D" {
-            Ownership::DIRECT
-        } else if ownership == "I" {
-            Ownership::INDIRECT
-        } else {
-            panic!("Ownership code could not be determined");
-        }
-    }
 
     fn traverse(root: &Element, path: &[&str]) -> Option<XMLNode> {
         let mut pos = Option::None;
@@ -118,6 +92,7 @@ impl XMLFiling {
         let symbol =  Self::traverse(&root, &["issuer", "issuerTradingSymbol"]).unwrap().text;
         let owner = Self::traverse(&root, &["reportingOwner", "reportingOwnerId", "rptOwnerName"]).unwrap().text;
         let relationships = Self::get_relationship(&root);
+        let form_date = Self::traverse(&root, &["periodOfReport"]).unwrap().parse_date();
 
         let table = root
             .get_child("nonDerivativeTable", NSChoice::Any)
@@ -129,6 +104,7 @@ impl XMLFiling {
                 let avg_price = Self::traverse(&child, &["transactionAmounts", "transactionPricePerShare"]).unwrap().parse_num();
 
                 let filing = FilingTransaction {
+                    form_date: form_date.clone(),
                     company_cik:  company_cik.clone(),
                     owner_cik: rpt_owner_cik.clone(),
                     form_type: form_type.clone(),
@@ -141,8 +117,9 @@ impl XMLFiling {
                     shares_owned: Self::traverse(&child, &["postTransactionAmounts", "sharesOwnedFollowingTransaction"]).unwrap().parse_num(),
                     trans_date: Self::traverse(&child, &["transactionDate"]).unwrap().parse_date(),
                     relationship: relationships.clone(),
-                    action: Self::get_action(&child),
-                    ownership: Self::get_ownership(&child)
+                    action_code: Self::traverse(&child, &["transactionAmounts", "transactionAcquiredDisposedCode"]).unwrap().text,
+                    ownership_code: Self::traverse(&child, &["ownershipNature", "directOrIndirectOwnership"]).unwrap().text,
+                    trans_code: Self::traverse(&child, &["transactionCoding", "transactionCode"]).unwrap().text
                 };
 
                 self.transactions.push(filing);

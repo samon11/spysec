@@ -9,21 +9,10 @@ pub enum Relationship {
     OFFICER,
 }
 
-#[derive(Default, Debug, Serialize)]
-pub enum Ownership {
-    #[default] DIRECT = 1,
-    INDIRECT
-}
-
-#[derive(Default, Debug, Serialize)]
-pub enum ShareAction {
-    #[default] ACQ = 1,
-    DISP
-}
-
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct FilingTransaction {
     pub trans_date: NaiveDate,
+    pub form_date: NaiveDate,
     pub company: String,
     pub symbol: String,
     pub owner: String,
@@ -32,8 +21,9 @@ pub struct FilingTransaction {
     pub avg_price: f32,
     pub amount: f32,
     pub shares_owned: f32,
-    pub ownership: Ownership,
-    pub action: ShareAction,
+    pub trans_code: String,
+    pub ownership_code: String,
+    pub action_code: String,
     pub company_cik: String,
     pub owner_cik: String,
     pub form_type: String
