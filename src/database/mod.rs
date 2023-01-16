@@ -1,11 +1,13 @@
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
+use diesel::result::Error::{self, NotFound};
 use diesel::r2d2::Pool;
 use dotenvy::dotenv;
 use std::env;
 
 use crate::database::models::NewIssuer;
+use crate::schema::issuer;
 use crate::secweb::models::FilingTransaction;
 
 use self::models::Issuer;
@@ -24,13 +26,23 @@ pub fn get_connection_pool() -> Pool<ConnectionManager<PgConnection>> {
         .expect("Could not build connection pool")
 }
 
-pub fn create_issuer(conn: &mut PgConnection, filing: &FilingTransaction) -> Issuer {
-    use super::schema::issuer;
+pub fn create_issuer(conn: &mut PgConnection, filing: &FilingTransaction) -> Option<Issuer> {
+    use super::schema::issuer::dsl::*;
 
     let new_issuer = NewIssuer::map(&filing);
+    let existing: Result<Issuer, Error> = issuer
+        .filter(cik.like(new_issuer.cik))
+        .first::<Issuer>(conn);
 
-    diesel::insert_into(issuer::table)
-        .values(&new_issuer)
-        .get_result(conn)
-        .expect("Should create new issuer")
+    match existing {
+        Ok(_) => {
+            return Option::None;
+        },
+        Err(_) => {
+            return diesel::insert_into(super::schema::issuer::table)
+                .values(&new_issuer)
+                .get_result(conn)
+                .ok();
+        }
+    }
 }

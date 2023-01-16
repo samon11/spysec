@@ -21,7 +21,7 @@ pub struct Individual {
     pub last_name: String
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct Issuer {
     pub issuer_id: i32,
     pub name: String,
