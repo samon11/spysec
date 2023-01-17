@@ -6,5 +6,5 @@ async fn main() {
     let start = NaiveDate::from_ymd_opt(2023, 1, 4).unwrap();
     let crawler = Crawler::new(&start);
 
-    crawler.run(10).await;
+    crawler.run(9).await;
 }

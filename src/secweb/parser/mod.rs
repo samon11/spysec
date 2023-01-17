@@ -8,8 +8,8 @@ use super::models::FilingTransaction;
 pub struct FilingDoc;
 
 impl FilingDoc {
-    pub fn new(content: &str) -> Vec<FilingTransaction> {
-        let mut filing = XMLFiling::new();
+    pub fn new(url: &str, content: &str) -> Vec<FilingTransaction> {
+        let mut filing = XMLFiling::new(url);
         let content = Self::extract_xml(content);
 
         filing.extract_transactions(Self::extract_xml(&content).as_str());

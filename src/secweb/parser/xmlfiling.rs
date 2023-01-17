@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use std::{string::String};
 use minidom::{Element, NSChoice};
+use regex::Regex;
 
 use crate::secweb::models::{Relationship, FilingTransaction};
 
@@ -29,13 +30,19 @@ impl XMLNode {
 }
 
 pub struct XMLFiling {
-    pub transactions: Vec<FilingTransaction>
+    pub transactions: Vec<FilingTransaction>,
+    pub url: String
 }
 
 impl XMLFiling {
-    pub fn new() -> XMLFiling {
-        XMLFiling { transactions: Vec::<FilingTransaction>::new() }
+    pub fn new(url: &str) -> XMLFiling {
+        XMLFiling {url: url.to_string(), transactions: Vec::<FilingTransaction>::new() }
     }
+
+    // TODO
+    // fn parse_access_num(&self) -> String {
+
+    // }
 
     fn get_relationship(node: &Element) -> Vec<Relationship> {
         let mut relationships = Vec::<Relationship>::new();
@@ -104,6 +111,7 @@ impl XMLFiling {
                 let avg_price = Self::traverse(&child, &["transactionAmounts", "transactionPricePerShare"]).unwrap().parse_num();
 
                 let filing = FilingTransaction {
+                    form_url: self.url.clone(),
                     form_date: form_date.clone(),
                     company_cik:  company_cik.clone(),
                     owner_cik: rpt_owner_cik.clone(),

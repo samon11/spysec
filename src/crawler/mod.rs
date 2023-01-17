@@ -2,7 +2,7 @@ use std::{fs, sync::{Arc, Mutex, MutexGuard}, thread::{sleep, self}, time::Durat
 use serde_json::Result;
 use chrono::{NaiveDate, Days, Datelike};
 
-use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, create_issuer}};
+use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, create_issuer, insert_models::NewIndividual, create_individual, create_form, insert_nonderiv}};
 
 pub struct Crawler {
     current_date: NaiveDate,
@@ -39,9 +39,35 @@ impl Crawler {
     fn save_filings_db(filings: &[FilingTransaction]) -> Result<()> {
         let pool = get_connection_pool();
         
+        let total = filings.len();
+        let mut i = 1;
         for trans in filings {
             let conn = &mut pool.get().unwrap();
-            create_issuer(conn, trans);
+            let issuer = create_issuer(conn, trans).ok();
+            let ind = create_individual(conn, trans).ok();
+
+            if ind.is_none() || issuer.is_none() {
+                println!("failed insert {i}/{total}");
+                i += 1;
+                continue;
+            }
+            
+            let form = create_form(conn, trans, &issuer.as_ref().unwrap());
+            if form.is_ok() {
+                let result = insert_nonderiv(
+                    conn, 
+                    trans, 
+                    &form.as_ref().unwrap(), 
+                    &issuer.unwrap(), 
+                    &ind.unwrap());
+
+                if result.is_err() {
+                    println!("Error occurred adding transaction for form ID: {}", form.unwrap().form_id);
+                }
+            }
+
+            println!("insert {i}/{total}");
+            i += 1;
         }
         
         Ok(())
@@ -61,7 +87,7 @@ impl Crawler {
         
         let mut skip = 0;
         let total = body.len() / batch;
-        for i in 0..5 {
+        for i in 0..total {
             println!("Get {i}/{total}");
 
             process_entries(&body, db.clone(), skip, batch).await.unwrap();

@@ -6,6 +6,7 @@ diesel::table! {
         IssuerId -> Int4,
         DateReported -> Date,
         FormType -> Varchar,
+        url -> Varchar,
     }
 }
 
@@ -40,9 +41,9 @@ diesel::table! {
         TransactionCode -> Nullable<Bpchar>,
         SharesBalance -> Numeric,
         SharesTraded -> Numeric,
-        AvgPrice -> Nullable<Numeric>,
-        Amount -> Nullable<Numeric>,
-        Relationships -> Nullable<Array<Nullable<Int4>>>,
+        AvgPrice -> Numeric,
+        Amount -> Numeric,
+        Relationships -> Array<Int4>,
     }
 }
 

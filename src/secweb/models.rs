@@ -26,5 +26,6 @@ pub struct FilingTransaction {
     pub action_code: String,
     pub company_cik: String,
     pub owner_cik: String,
-    pub form_type: String
+    pub form_type: String,
+    pub form_url: String,
 }

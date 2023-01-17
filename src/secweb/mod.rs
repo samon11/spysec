@@ -1,5 +1,4 @@
 mod parser;
-pub mod persist;
 pub mod models;
 
 use std::error::Error;
@@ -30,7 +29,7 @@ pub async fn get_form(entry: &IndexEntry) -> Result<Vec<FilingTransaction>, Box<
 
     let body = res.text().await?;
     
-    Ok(FilingDoc::new(&body))
+    Ok(FilingDoc::new(&url, &body))
 }
 
 pub async fn process_entries(entries: &[IndexEntry], db: Db, skip: usize, take: usize) -> Result<(), Box<dyn Error>> {
