@@ -40,8 +40,8 @@ impl XMLFiling {
     }
 
     pub fn get_web_url(&self, owner_cik: &str) -> String {
-        let access_num = self.parse_access_num().replace("-", "");
-        format!("https://www.sec.gov/Archives/edgar/data/{}/{}/xslF345X03/doc4.xml", owner_cik, access_num)
+        let bare_num = self.parse_access_num().replace("-", "");
+        format!("https://www.sec.gov/Archives/edgar/data/{}/{}/{}-index.html", owner_cik, bare_num, self.parse_access_num())
     }
 
     fn parse_access_num(&self) -> String {
