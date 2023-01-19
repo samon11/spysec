@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use diesel::prelude::*;
 use bigdecimal::BigDecimal;
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct Form {
     pub form_id: i64,
     pub issuer_id: i32,
@@ -12,7 +12,7 @@ pub struct Form {
     pub access_no: String
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct Individual {
     pub individual_id: i32,
     pub cik: String,
@@ -21,7 +21,7 @@ pub struct Individual {
     pub last_name: Option<String>
 }
 
-#[derive(Queryable, Debug, Clone)]
+#[derive(Queryable, Debug)]
 pub struct Issuer {
     pub issuer_id: i32,
     pub name: String,
@@ -29,7 +29,7 @@ pub struct Issuer {
     pub cik: String
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct NonDerivTransaction {
     pub transaction_id: i64,
     pub date_reported: NaiveDate,

@@ -35,6 +35,7 @@ pub async fn get_form(entry: &IndexEntry) -> Result<Vec<FilingTransaction>, Box<
 pub async fn process_entries(entries: &[IndexEntry], db: Db, skip: usize, take: usize) -> Result<(), Box<dyn Error>> {
     for entry in entries.iter().cloned().skip(skip).take(take) {
         let db = db.clone();
+
         tokio::spawn(async move {
             let result = get_form(&entry).await;
             match result {

@@ -1,8 +1,9 @@
-use std::{fs, sync::{Arc, Mutex, MutexGuard}, thread::{sleep, self}, time::Duration, rc::Rc};
+use std::{fs, sync::{Arc, Mutex, }, thread::{sleep}, time::Duration, ops::AddAssign};
 use serde_json::Result;
 use chrono::{NaiveDate, Days, Datelike};
+use futures::*;
 
-use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, create_issuer, insert_models::NewIndividual, create_individual, create_form, insert_nonderiv}};
+use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, SqlHelper}};
 
 pub struct Crawler {
     current_date: NaiveDate,
@@ -13,7 +14,7 @@ impl Crawler {
         Crawler { current_date: *start }
     }
 
-    fn increment_day(&mut self)  {
+    fn increment_day(&mut self) {
         self.current_date = self.current_date
             .checked_add_days(Days::new(1))
             .unwrap();
@@ -36,39 +37,46 @@ impl Crawler {
         fs::write(filepath, text).expect("Unable to write file");
     }
 
-    fn save_filings_db(filings: &[FilingTransaction]) -> Result<()> {
+    async fn save_filings_db(filings: &[FilingTransaction]) -> Result<()> {
         let pool = get_connection_pool();
+        let helper = Arc::new(Mutex::new(SqlHelper::new()));
         
         let total = filings.len();
-        let mut i = 1;
-        for trans in filings {
-            let conn = &mut pool.get().unwrap();
-            let issuer = create_issuer(conn, trans).ok();
-            let ind = create_individual(conn, trans).ok();
+        let i = Arc::new(Mutex::new(0));
+        let stream = stream::iter(filings);
 
-            if ind.is_none() || issuer.is_none() {
-                println!("failed insert {i}/{total}");
-                i += 1;
-                continue;
-            }
-            
-            let form = create_form(conn, trans, &issuer.as_ref().unwrap());
-            if form.is_ok() {
-                let result = insert_nonderiv(
-                    conn, 
-                    trans, 
-                    &form.as_ref().unwrap(), 
-                    &issuer.unwrap(), 
-                    &ind.unwrap());
-
-                if result.is_err() {
-                    println!("Error occurred adding transaction for form ID: {}", form.unwrap().form_id);
+        stream
+            .for_each_concurrent(10, |trans| async {
+                let conn = &mut pool.get().unwrap();
+                let mut helper = helper.lock().unwrap();
+                let issuer = helper.create_issuer(conn, trans).ok();
+                let ind = helper.create_individual(conn, trans).ok();
+                
+                if ind.is_none() || issuer.is_none() {
+                    let mut progress = i.lock().unwrap();
+                    progress.add_assign(1);
+                    println!("failed insert {progress}/{total}");
                 }
-            }
+                
+                let form_id = helper.create_form(conn, trans, issuer.unwrap());
+                if form_id.is_ok() {
+                    let form_id = form_id.unwrap();
+                    let result = SqlHelper::insert_nonderiv(
+                        conn, 
+                        trans, 
+                        form_id, 
+                        issuer.unwrap(), 
+                        ind.unwrap());
+    
+                    if result.is_err() {
+                        println!("Error occurred adding transaction for form ID: {}", form_id);
+                    }
+                }
 
-            println!("insert {i}/{total}");
-            i += 1;
-        }
+                let mut progress = i.lock().unwrap();
+                progress.add_assign(1);
+                println!("insert {progress}/{total}");
+            }).await;
         
         Ok(())
     }
@@ -87,7 +95,7 @@ impl Crawler {
         
         let mut skip = 0;
         let total = body.len() / batch;
-        for i in 0..total {
+        for i in 0..10 {
             println!("Get {i}/{total}");
 
             process_entries(&body, db.clone(), skip, batch).await.unwrap();
@@ -102,6 +110,6 @@ impl Crawler {
         
         self.save_filings_json(&filings);
 
-        Self::save_filings_db(&filings).expect("Should have saved to local file and db");
+        Self::save_filings_db(&filings).await.expect("Should have saved to local file and db");
     }
 }

@@ -51,17 +51,17 @@ impl NewIndividual<'_> {
             .map(|c| c.to_string())
             .collect();
 
-        if split.len() >= 2 && !filing.owner.contains("INC") {
+        // TODO: distinguish between people and company names
+        if split.len() >= 2 {
             let mut owner: Vec<_> = filing.owner.split(" ").collect();
             owner.reverse();
 
-            let owner = owner.join(" ").clone();
             let split = split.clone();
             let last_name = Some(split[0].clone());
             let first_name = Some(split[1..split.len()].join(" "));
     
             return NewIndividual {
-                full_name: owner, 
+                full_name: filing.owner.to_string(), 
                 cik: &filing.owner_cik, 
                 first_name: first_name, 
                 last_name: last_name };
