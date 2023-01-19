@@ -4,7 +4,9 @@ use spysec::crawler::Crawler;
 #[tokio::main]
 async fn main() {
     let start = NaiveDate::from_ymd_opt(2023, 1, 4).unwrap();
-    let crawler = Crawler::new(&start);
+    let mut crawler = Crawler::new(&start);
 
-    crawler.run(9).await;
+    loop {
+        crawler.run(9).await;
+    }
 }

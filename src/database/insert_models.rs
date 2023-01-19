@@ -88,7 +88,11 @@ pub struct NewForm {
     #[diesel(column_name = "FormType")]
     pub form_type: String,
 
-    pub url: String,
+    #[diesel(column_name = "TxtURL")]
+    pub txt_url: String,
+
+    #[diesel(column_name = "WebURL")]
+    pub web_url: String,
 
     #[diesel(column_name = "AccessNo")]
     pub access_no: String
@@ -100,7 +104,8 @@ impl NewForm {
             issuer_id: issuer_id, 
             date_reported: filing.form_date, 
             form_type: filing.form_type.to_string(),
-            url: filing.form_url.to_string(),
+            txt_url: filing.form_url.to_string(),
+            web_url: filing.web_url.to_string(),
             access_no: filing.access_no.to_string()
         }
     }

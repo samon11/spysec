@@ -28,5 +28,6 @@ pub struct FilingTransaction {
     pub owner_cik: String,
     pub form_type: String,
     pub form_url: String,
+    pub web_url: String,
     pub access_no: String,
 }

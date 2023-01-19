@@ -39,6 +39,11 @@ impl XMLFiling {
         XMLFiling {url: url.to_string(), transactions: Vec::<FilingTransaction>::new() }
     }
 
+    pub fn get_web_url(&self, owner_cik: &str) -> String {
+        let access_num = self.parse_access_num().replace("-", "");
+        format!("https://www.sec.gov/Archives/edgar/data/{}/{}/xslF345X03/doc4.xml", owner_cik, access_num)
+    }
+
     fn parse_access_num(&self) -> String {
         let pattern: Regex = Regex::new(r#"[0-9]{10}-[0-9]{2}-[0-9]{6}"#).unwrap();
 
@@ -105,6 +110,7 @@ impl XMLFiling {
         let owner = Self::traverse(&root, &["reportingOwner", "reportingOwnerId", "rptOwnerName"]).unwrap().text;
         let relationships = Self::get_relationship(&root);
         let form_date = Self::traverse(&root, &["periodOfReport"]).unwrap().parse_date();
+        let web_url = self.get_web_url(&rpt_owner_cik);
 
         let table = root
             .get_child("nonDerivativeTable", NSChoice::Any)
@@ -116,6 +122,7 @@ impl XMLFiling {
                 let avg_price = Self::traverse(&child, &["transactionAmounts", "transactionPricePerShare"]).unwrap().parse_num();
 
                 let filing = FilingTransaction {
+                    web_url: web_url.clone(),
                     form_url: self.url.clone(),
                     access_no: access_no.clone(),
                     form_date: form_date.clone(),

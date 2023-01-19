@@ -8,8 +8,9 @@ pub struct Form {
     pub issuer_id: i32,
     pub date_reported: NaiveDate,
     pub form_type: String,
-    pub url: String,
-    pub access_no: String
+    pub txt_url: String,
+    pub access_no: String,
+    pub web_url: String
 }
 
 #[derive(Queryable, Debug)]

@@ -6,16 +6,16 @@ use futures::*;
 use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, SqlHelper}};
 
 pub struct Crawler {
-    current_date: NaiveDate,
+    crawl_date: NaiveDate,
 }
 
 impl Crawler {
     pub fn new(start: &NaiveDate) -> Crawler {
-        Crawler { current_date: *start }
+        Crawler { crawl_date: *start }
     }
 
     fn increment_day(&mut self) {
-        self.current_date = self.current_date
+        self.crawl_date = self.crawl_date
             .checked_add_days(Days::new(1))
             .unwrap();
     }
@@ -27,10 +27,10 @@ impl Crawler {
     }
 
     fn save_filings_json(&self, filings: &[FilingTransaction]) {
-        let date = self.current_date.format("%Y%m%d");
-        let filepath = format!("{}/{date}-filing.json", Self::get_save_dir(self.current_date));
+        let date = self.crawl_date.format("%Y%m%d");
+        let filepath = format!("{}/{date}-filing.json", Self::get_save_dir(self.crawl_date));
         
-        fs::create_dir_all(Self::get_save_dir(self.current_date))
+        fs::create_dir_all(Self::get_save_dir(self.crawl_date))
             .expect("Failed to create dir path");
         
         let text = serde_json::to_string(&filings).expect("Failed to serialize struct");
@@ -81,21 +81,35 @@ impl Crawler {
         Ok(())
     }
 
-    pub async fn run(&self, batch: usize) {
+    pub async fn run(&mut self, batch: usize) {
         if batch > 10 {
             panic!("Due to SEC limits, batch per second must be <= 10");
         }
 
+        if self.crawl_date >= chrono::Local::now().date_naive() {
+            println!("{} is in the future... waiting for that to change", self.crawl_date);
+            
+            let min_delay = Duration::from_secs(60);
+            sleep(min_delay);
+
+            return
+        }
+
         let db = Arc::new(Mutex::new(Vec::<FilingTransaction>::new()));
 
-        let body = get_daily_entries(self.current_date).await.unwrap();
+        let body = get_daily_entries(self.crawl_date).await.unwrap();
         
-        assert_ne!(body.len(), 0);
+        if body.len() == 0 {
+            println!("Skip day {} index empty", self.crawl_date);
+            self.increment_day();
+            return;
+        }
+
         let second_delay = Duration::from_secs(1);
         
         let mut skip = 0;
         let total = body.len() / batch;
-        for i in 0..10 {
+        for i in 0..total {
             println!("Get {i}/{total}");
 
             process_entries(&body, db.clone(), skip, batch).await.unwrap();
@@ -111,5 +125,7 @@ impl Crawler {
         self.save_filings_json(&filings);
 
         Self::save_filings_db(&filings).await.expect("Should have saved to local file and db");
+        
+        self.increment_day();
     }
 }

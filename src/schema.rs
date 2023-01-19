@@ -6,8 +6,9 @@ diesel::table! {
         IssuerId -> Int4,
         DateReported -> Date,
         FormType -> Varchar,
-        url -> Varchar,
+        TxtURL -> Varchar,
         AccessNo -> Varchar,
+        WebURL -> Varchar,
     }
 }
 
