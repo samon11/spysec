@@ -1,7 +1,7 @@
 version: '3.1'
 
 services:
-  db:
+  pgdb:
     image: postgres:14
     restart: always
     ports:
@@ -10,3 +10,8 @@ services:
       POSTGRES_PASSWORD: localdb123
     volumes:
       - /home/michael/Desktop/spysecdb/data:/var/lib/postgresql/data
+  parser:
+    volumes:
+      - /home/michael/Desktop/spysecdb/filings:/app/filings
+    build:
+      context: ./
