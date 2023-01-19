@@ -39,10 +39,14 @@ impl XMLFiling {
         XMLFiling {url: url.to_string(), transactions: Vec::<FilingTransaction>::new() }
     }
 
-    // TODO
-    // fn parse_access_num(&self) -> String {
+    fn parse_access_num(&self) -> String {
+        let pattern: Regex = Regex::new(r#"[0-9]{10}-[0-9]{2}-[0-9]{6}"#).unwrap();
 
-    // }
+        let result = pattern.find(&self.url)
+            .expect("Url should have valid accession number");
+
+        result.as_str().to_string()
+    }
 
     fn get_relationship(node: &Element) -> Vec<Relationship> {
         let mut relationships = Vec::<Relationship>::new();
@@ -92,6 +96,7 @@ impl XMLFiling {
     pub fn extract_transactions(&mut self, xml_input: &str) {
         let root: Element = xml_input.parse().unwrap();
 
+        let access_no = self.parse_access_num();
         let company_cik = Self::traverse(&root, &["issuer", "issuerCik"]).unwrap().text;
         let rpt_owner_cik = Self::traverse(&root, &["reportingOwner", "reportingOwnerId", "rptOwnerCik"]).unwrap().text;
         let form_type = Self::traverse(&root, &["documentType"]).unwrap().text;
@@ -112,6 +117,7 @@ impl XMLFiling {
 
                 let filing = FilingTransaction {
                     form_url: self.url.clone(),
+                    access_no: access_no.clone(),
                     form_date: form_date.clone(),
                     company_cik:  company_cik.clone(),
                     owner_cik: rpt_owner_cik.clone(),
