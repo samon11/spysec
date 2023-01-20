@@ -6,7 +6,7 @@ use futures::*;
 use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, SqlHelper}};
 
 pub struct Crawler {
-    crawl_date: NaiveDate,
+    pub crawl_date: NaiveDate,
 }
 
 impl Crawler {
