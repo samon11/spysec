@@ -13,6 +13,17 @@ impl Crawler {
     pub fn new(start: &NaiveDate) -> Crawler {
         Crawler { crawl_date: *start }
     }
+    // crawl = 1/18
+    // today = 20
+    // crawl = 19
+    // crawl = 20
+
+    fn yesterday() -> NaiveDate {
+        chrono::Local::now()
+            .date_naive()
+            .checked_sub_days(Days::new(1))
+            .unwrap()
+    }
 
     fn increment_day(&mut self) {
         self.crawl_date = self.crawl_date
@@ -86,13 +97,13 @@ impl Crawler {
             panic!("Due to SEC limits, batch per second must be <= 10");
         }
 
-        if self.crawl_date >= chrono::Local::now().date_naive() {
-            println!("{} is in the future... waiting for that to change", self.crawl_date);
+        if self.crawl_date > Self::yesterday() {
+            println!("{} is today... waiting for that to change", self.crawl_date);
             
             let min_delay = Duration::from_secs(60);
             sleep(min_delay);
 
-            return
+            return;
         }
 
         let db = Arc::new(Mutex::new(Vec::<FilingTransaction>::new()));

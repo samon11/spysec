@@ -1,5 +1,7 @@
 pub mod index;
 pub mod xmlfiling;
+use std::error::Error;
+
 use regex::Regex;
 
 use self::xmlfiling::XMLFiling;
@@ -8,12 +10,15 @@ use super::models::FilingTransaction;
 pub struct FilingDoc;
 
 impl FilingDoc {
-    pub fn new(url: &str, content: &str) -> Vec<FilingTransaction> {
+    pub fn new(url: &str, content: &str) -> Result<Vec<FilingTransaction>, Box<dyn Error>>{
         let mut filing = XMLFiling::new(url);
         let content = Self::extract_xml(content);
 
-        filing.extract_transactions(Self::extract_xml(&content).as_str());
-        filing.transactions
+        filing
+            .extract_transactions(
+                Self::extract_xml(&content)
+                .as_str()
+            )
     }
 
     fn extract_xml(input: &str) -> String {

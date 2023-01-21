@@ -2,6 +2,8 @@ mod parser;
 pub mod models;
 
 use std::error::Error;
+use std::io::Write;
+use std::fs::OpenOptions;
 use std::sync::{Arc, Mutex};
 use chrono::{NaiveDate, Datelike};
 use reqwest::{RequestBuilder, Client};
@@ -29,7 +31,18 @@ pub async fn get_form(entry: &IndexEntry) -> Result<Vec<FilingTransaction>, Box<
 
     let body = res.text().await?;
     
-    Ok(FilingDoc::new(&url, &body))
+    FilingDoc::new(&url, &body)
+}
+
+fn save_failed(index_url: &str) {
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open("filings/failed.txt")
+        .unwrap();
+
+    if let Err(_) = writeln!(file, "{}", index_url) {
+        println!("Error occurred writing {} to failed.txt", index_url);
+    }
 }
 
 pub async fn process_entries(entries: &[IndexEntry], db: Db, skip: usize, take: usize) -> Result<(), Box<dyn Error>> {
@@ -46,6 +59,7 @@ pub async fn process_entries(entries: &[IndexEntry], db: Db, skip: usize, take: 
                 },
                 Err(err) => {
                     println!("Error occurred for filing {}: {:?}", entry.filepath, err);
+                    save_failed(&entry.filepath);
                 }
             }
         });

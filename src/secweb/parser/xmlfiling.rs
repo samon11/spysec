@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use std::{string::String};
+use std::{string::String, error::Error};
 use minidom::{Element, NSChoice};
 use regex::Regex;
 
@@ -98,7 +98,8 @@ impl XMLFiling {
         }
     }
 
-    pub fn extract_transactions(&mut self, xml_input: &str) {
+    pub fn extract_transactions(&mut self, xml_input: &str) -> Result<Vec<FilingTransaction>, Box<dyn Error>>{
+        let mut transactions = Vec::<FilingTransaction>::new();
         let root: Element = xml_input.parse().unwrap();
 
         let access_no = self.parse_access_num();
@@ -143,9 +144,12 @@ impl XMLFiling {
                     trans_code: Self::traverse(&child, &["transactionCoding", "transactionCode"]).unwrap().text
                 };
 
-                self.transactions.push(filing);
+                transactions.push(filing);
             }
         }
+
+        Ok(transactions)
+
     }
 }
 
