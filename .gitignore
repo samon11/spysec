@@ -3,3 +3,6 @@
 .env
 data/
 filings/
+secret.py
+__pycache__
+*.txt
