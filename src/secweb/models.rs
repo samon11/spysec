@@ -1,7 +1,7 @@
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use chrono::NaiveDate;
 
-#[derive(Default, Debug, Serialize, Clone, Copy)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Relationship {
     #[default] OTHER = 1,
     TENPERC,
@@ -9,7 +9,7 @@ pub enum Relationship {
     OFFICER,
 }
 
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct FilingTransaction {
     pub trans_date: NaiveDate,
     pub form_date: NaiveDate,

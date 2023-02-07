@@ -1,10 +1,14 @@
 use chrono::NaiveDate;
+use chrono_tz::US::Eastern;
 use spysec::crawler::Crawler;
 
 #[tokio::main]
 async fn main() {
-    let start = NaiveDate::from_ymd_opt(2018, 1, 1).unwrap();
-    let end = NaiveDate::from_ymd_opt(2022, 1, 4).unwrap();
+    let start = chrono::Utc::now()
+        .with_timezone(&Eastern)
+        .date_naive();
+
+    let end = NaiveDate::from_ymd_opt(2000, 1, 4).unwrap();
     let mut crawler = Crawler::new(&start);
 
     loop {
@@ -13,6 +17,6 @@ async fn main() {
             break;
         }
 
-        crawler.run(9).await;
+        crawler.run(8).await;
     }
 }

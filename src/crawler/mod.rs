@@ -1,6 +1,14 @@
-use std::{fs, sync::{Arc, Mutex, }, thread::{sleep}, time::Duration, ops::AddAssign};
+use std::{
+    fs::{self, File}, 
+    sync::{Arc, Mutex, }, 
+    thread::{sleep}, 
+    time::Duration, 
+    ops::AddAssign, 
+    path::Path, 
+    io::BufReader};
 use serde_json::Result;
 use chrono::{NaiveDate, Days, Datelike};
+use chrono_tz::{US::Eastern};
 use futures::*;
 
 use crate::{secweb::{models::FilingTransaction, process_entries, get_daily_entries}, database::{get_connection_pool, SqlHelper}};
@@ -13,13 +21,10 @@ impl Crawler {
     pub fn new(start: &NaiveDate) -> Crawler {
         Crawler { crawl_date: *start }
     }
-    // crawl = 1/18
-    // today = 20
-    // crawl = 19
-    // crawl = 20
 
     fn yesterday() -> NaiveDate {
         chrono::Local::now()
+            .with_timezone(&Eastern)
             .date_naive()
             .checked_sub_days(Days::new(1))
             .unwrap()
@@ -37,9 +42,13 @@ impl Crawler {
         format!("filings/{year}/{month}")
     }
 
-    fn save_filings_json(&self, filings: &[FilingTransaction]) {
+    fn get_file_path(&self) -> String {
         let date = self.crawl_date.format("%Y%m%d");
-        let filepath = format!("{}/{date}-filing.json", Self::get_save_dir(self.crawl_date));
+        format!("{}/{date}-filing.json", Self::get_save_dir(self.crawl_date))
+    }
+
+    fn save_filings_json(&self, filings: &[FilingTransaction]) {
+        let filepath = self.get_file_path();
         
         fs::create_dir_all(Self::get_save_dir(self.crawl_date))
             .expect("Failed to create dir path");
@@ -107,6 +116,25 @@ impl Crawler {
         }
 
         let db = Arc::new(Mutex::new(Vec::<FilingTransaction>::new()));
+
+        // check for json file saved previously
+        let path = self.get_file_path();
+        let existing = Path::new(&path).exists();
+        if existing {
+            let file = File::open(&path);
+            let rdr = BufReader::new(file.unwrap());
+
+            let filings: Result<Vec<FilingTransaction>> = serde_json::from_reader(rdr);
+            if filings.is_ok() {
+                println!("Inserting from previously saved file {path}");
+                Self::save_filings_db(&filings.unwrap())
+                    .await
+                    .expect("Error saving to db");
+                
+                self.increment_day();
+                return;
+            }
+        }
 
         let body = get_daily_entries(self.crawl_date).await.unwrap();
         

@@ -8,10 +8,12 @@ services:
       - 6000:5432
     environment:
       POSTGRES_PASSWORD: localdb123
+      POSTGRES_DB: sec
     volumes:
-      - /home/michael/Desktop/spysecdb/data:/var/lib/postgresql/data
+      - /home/michael/spysec/data:/var/lib/postgresql/data
   parser:
+    restart: always
     volumes:
-      - /home/michael/Desktop/spysecdb/filings:/app/filings
+      - ./filings:/app/filings
     build:
       context: ./

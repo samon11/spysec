@@ -1,12 +1,10 @@
 use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::NaiveDate;
 use diesel::prelude::*;
-use crate::{schema::*, secweb::models::Relationship};
-use diesel::pg::data_types::PgNumeric;
+use crate::{schema::*};
 
 use crate::secweb::models::FilingTransaction;
 
-use super::query_models::Issuer;
 
 #[derive(Insertable)]
 #[diesel(table_name = issuer)]
