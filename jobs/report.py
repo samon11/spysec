@@ -71,5 +71,6 @@ def main():
 
 if __name__ == "__main__":
     while True:
-        if arrow.utcnow().to("US/Eastern").time().hour == 1 and not check_today_sent():
+        now = arrow.utcnow().to("US/Eastern")
+        if now.time().hour == 1 and not check_today_sent() and now.weekday() not in [0, 6]:
             main()
