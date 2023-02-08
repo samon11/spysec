@@ -3,8 +3,14 @@ from email.mime.multipart import MIMEMultipart
 import arrow
 import os
 import smtplib, ssl
+import pandas as pd
 from secret import CONN, PASS, EMAIL, TO, PORT
 import psycopg2
+
+def get_sp500() -> list[str]:
+    table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+    df = table[0]
+    return df["Symbol"].to_numpy().tolist()
 
 def track_sent():
     now = arrow.utcnow().to("US/Eastern").shift(days=-1).format("M-D-YYYY")
@@ -35,6 +41,8 @@ def send_summary(summary: str):
     with smtplib.SMTP_SSL("smtp.gmail.com", PORT, context=context) as server:
         server.login(EMAIL, PASS)
         server.sendmail(EMAIL, TO, message.as_string())
+    
+    track_sent()
 
 def main():
     weeks_ago = arrow.utcnow().to("US/Eastern").shift(days=-14).format("YYYY-MM-DD")
@@ -59,12 +67,20 @@ def main():
                 )
 
                 result = cur.fetchall()
-                header = "Date,Name,Symbol,ActionCode,Amount,AvgPrice\n"
-                csv_rows = [",".join([f"\"{c}\"" for c in r]) for r in result]
-                csv = header + "\n".join(csv_rows)
+                sp500 = get_sp500()
+                large_cap = []
+                for row in result:
+                    if row[2] in sp500:
+                        large_cap.append(row)
 
-                send_summary(csv)
-                track_sent()
+                header = "Date,Name,Symbol,ActionCode,Amount,AvgPrice\n"
+                if len(large_cap) > 0:
+                    csv_rows = [",".join([f"\"{c}\"" for c in r]) for r in large_cap]
+                    csv = header + "\n".join(csv_rows)
+                    send_summary(csv)
+                else:
+                    # still notify there were no sp500 companies found
+                    send_summary(header)
 
     except Exception as e:
         print("Error occurred:", e);
