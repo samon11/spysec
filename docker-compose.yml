@@ -1,17 +1,15 @@
-version: '3.1'
-
 services:
-  pgdb:
-    image: postgres:14
+  spysec-db:
+    image: mongo:6.0
     restart: always
     ports:
-      - 6000:5432
+      - 27017:27017
     environment:
-      POSTGRES_PASSWORD: localdb123
+      MONGO_INITDB_DATABASE: spysec
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo
     volumes:
-      - /home/michael/Desktop/spysecdb/data:/var/lib/postgresql/data
-  parser:
-    volumes:
-      - /home/michael/Desktop/spysecdb/filings:/app/filings
-    build:
-      context: ./
+      - spysec-mongo:/data/db
+
+volumes:
+  spysec-mongo:
