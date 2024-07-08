@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Generic, List, Type, TypeVar
-import arrow
 from bs4 import BeautifulSoup, PageElement
 from models import Form4, OwnershipType, RelationshipType, NonDerivativeTransaction, DerivativeTransaction, TransactionType, WebForm
 

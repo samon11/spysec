@@ -13,7 +13,7 @@ app = func.FunctionApp()
 db = MongoDatabase(DATABASE_URI, DATABASE_NAME)
 client = SECClient()
 
-@app.schedule(schedule="0 * * * * *", arg_name="timer", run_on_startup=True,
+@app.schedule(schedule="0 0 * * * *", arg_name="timer", run_on_startup=True,
               use_monitor=True) 
 def timer_trigger(timer: func.TimerRequest) -> None:
     if timer.past_due:
