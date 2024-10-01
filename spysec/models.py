@@ -64,7 +64,10 @@ class DerivativeTransaction(BaseModel):
 
     @property
     def monetaryValue(self):
-        return self.exercisePrice * self.sharesTransacted
+        if self.exercisePrice and self.sharesTransacted:
+            return self.exercisePrice * self.sharesTransacted
+        
+        return 0
 
 class NonDerivativeTransaction(BaseModel):
     title: str
@@ -78,7 +81,10 @@ class NonDerivativeTransaction(BaseModel):
 
     @property
     def monetaryValue(self):
-        return self.price * self.shares
+        if self.price and self.shares:
+            return self.price * self.shares
+        
+        return 0
 
 class Filing(BaseModel):
     formDate: datetime
@@ -97,6 +103,57 @@ class Form4(Filing):
     derivativeTransactions: Optional[List[DerivativeTransaction]]
     nonDerivativeTransactions: Optional[List[NonDerivativeTransaction]]
     xmlUrl: str
+
+    def get_direction(self) -> str:
+        total_buy = 0
+        total_sell = 0
+        
+        if self.derivativeTransactions is not None:
+            for transaction in self.derivativeTransactions:
+                if transaction.transactionType == TransactionType.BUY:
+                    total_buy += transaction.monetaryValue
+                elif transaction.transactionType == TransactionType.SELL:
+                    total_sell += transaction.monetaryValue
+        
+        if self.nonDerivativeTransactions is not None:
+            for transaction in self.nonDerivativeTransactions:
+                if transaction.transactionType == TransactionType.BUY:
+                    total_buy += transaction.monetaryValue
+                elif transaction.transactionType == TransactionType.SELL:
+                    total_sell += transaction.monetaryValue
+        
+        if total_buy > total_sell:
+            return "BUY"
+        else:
+            return "SELL"
+        
+    @property
+    def monetaryValue(self):
+        value = 0
+        for transaction in self.nonDerivativeTransactions:
+            value += transaction.monetaryValue
+
+        for transaction in self.derivativeTransactions:
+            value += transaction.monetaryValue
+
+        return value
+    
+    @property
+    def averageSharePrice(self):
+        price = 0.
+        i = 0
+
+        for transaction in self.nonDerivativeTransactions:
+            if transaction.price and transaction.price > 0:
+                price += transaction.price
+                i += 1
+
+        for transaction in self.derivativeTransactions:
+            if transaction.sharePrice and transaction.sharePrice > 0:
+                price += transaction.sharePrice
+                i += 1 
+
+        return 0 if price == 0 else price / i
 
 class RSSFeed(BaseModel):
     formType: str

@@ -1,7 +1,12 @@
+import os
 from typing import List
 import pymongo
+from dotenv import load_dotenv
 
 from models import Form4
+load_dotenv()
+
+DB_URL = os.environ.get("MONGO_URL")
 
 class MongoDatabase:
     def __init__(self, uri: str, database: str):
@@ -29,3 +34,8 @@ class MongoDatabase:
             self.db['forms'].replace_one({'xmlUrl': form.xmlUrl}, form.model_dump())
         else:
             self.insert_one('forms', form.model_dump())
+
+    def query_forms(self, query: dict):
+        return [Form4(**doc) for doc in self.db['forms'].find(query).sort({"formDate": -1})]
+
+db = MongoDatabase(uri=DB_URL, database="spysec")
